@@ -104,9 +104,14 @@ GitHub Actions (`.github/workflows/deploy.yml`) が `main` ブランチへのpus
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Workers/D1編集権限を持つCloudflare APIトークン |
 | `CLOUDFLARE_ACCOUNT_ID` | CloudflareアカウントID |
+| `JWT_SECRET` | ログインセッションの署名鍵。ローカルで `openssl rand -hex 32` などで生成した値を登録(チャットやコードに貼らないこと) |
+| `INGEST_API_KEY` | beds24連携用の共有キー(任意、`openssl rand -hex 32` などで生成) |
+
+`JWT_SECRET` / `INGEST_API_KEY` はワークフロー内で自動的に `wrangler secret put` に渡されるため、
+手元で個別に設定する必要はありません(未登録の場合はワークフローが警告を出してスキップします)。
 
 登録後、`main` へマージ(または `workflow_dispatch` で手動実行)するとD1マイグレーション適用
-→ `wrangler deploy` が走り、`https://cleanschedule.<あなたのサブドメイン>.workers.dev` で公開されます。
+→ `wrangler deploy` → シークレット同期が走り、`https://cleanschedule.<あなたのサブドメイン>.workers.dev` で公開されます。
 
 手元から直接デプロイする場合:
 
@@ -114,6 +119,8 @@ GitHub Actions (`.github/workflows/deploy.yml`) が `main` ブランチへのpus
 npx wrangler login
 npm run db:migrate:remote
 npm run deploy
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put INGEST_API_KEY
 ```
 
 ## 初期ログイン情報
