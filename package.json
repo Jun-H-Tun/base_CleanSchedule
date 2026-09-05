@@ -1,0 +1,21 @@
+{
+  "name": "cleanschedule",
+  "version": "1.0.0",
+  "private": true,
+  "description": "民泊清掃管理Webアプリ (Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply cleanschedule-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply cleanschedule-db --remote",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250906.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.90.0"
+  },
+  "dependencies": {
+    "hono": "^4.6.13"
+  }
+}
