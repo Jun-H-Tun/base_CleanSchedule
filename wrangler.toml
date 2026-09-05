@@ -1,0 +1,22 @@
+name = "cleanschedule"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Workers Static Assets: serves the frontend (public/) directly from
+# this Worker, so a single `wrangler deploy` publishes both the API and the
+# TimeTree-style calendar UI (no separate Cloudflare Pages project needed).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cleanschedule-db"
+database_id = "e3168c7b-05f6-4c04-8cf3-4d0ec78cfd4d"
+migrations_dir = "migrations"
+
+# Secrets (set with `wrangler secret put <NAME>`, never committed):
+#   JWT_SECRET       - random string used to sign session cookies
+#   INGEST_API_KEY   - shared key the beds24 sync (Claude in Chrome -> Claude Code)
+#                      sends as `X-Api-Key` when calling POST /api/reservations/upsert
