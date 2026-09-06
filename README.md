@@ -59,10 +59,14 @@ D1データベース `cleanschedule-db` はすでにCloudflareアカウント上
 
 ### 自動割り振りの実行タイミング
 
-毎日 **JST 06:00**(`wrangler.toml` の Cron Trigger)に、今日から30日先までの清掃タスクを
+毎日 **JST 10:30**(`wrangler.toml` の Cron Trigger)に、今日から30日先までの清掃タスクを
 自動で再計算します(`src/index.ts` の `scheduled` ハンドラ → `src/generateTasks.ts`)。
 手動修正済み(`is_manual_override=1`)や完了/キャンセル済みのタスクは対象外です。
 時刻を変えたい場合は `wrangler.toml` の `[triggers] crons` を編集してください(UTC指定)。
+
+10:30なのは、beds24の予約データ取り込み(ローカルのClaude Code / Coworkの「ルーティン」機能
+で毎日JST 10:00に実行)より後ろにして、その日の最新データを反映してから割り振りが
+走るようにするためです。ルーティンの実行時刻を変えた場合は、こちらも合わせて調整してください。
 
 カレンダー画面の「この月を自動割り振り」ボタンで、Cronを待たずにその場で再計算することも
 できます(管理者のみ)。
