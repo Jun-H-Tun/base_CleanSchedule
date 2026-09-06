@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  セットアップ手順 (docs/beds24-sync-guide.md も参照):
+    1. このファイルを ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist にコピー
+    2. 下記の /REPLACE/ME/base_CleanSchedule を、実際にcloneしたパスに書き換える
+       (フルパスは `pwd` コマンドで確認できます)
+    3. 時刻を変えたい場合は Hour / Minute を編集(24時間表記、ローカル時刻)
+    4. 読み込む:
+         launchctl load -w ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist
+    5. 止めたい場合:
+         launchctl unload ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.cleanschedule.dailyreminder</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>/REPLACE/ME/base_CleanSchedule/scripts/mac-daily-reminder.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/tmp/cleanschedule-dailyreminder.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/cleanschedule-dailyreminder.err.log</string>
+</dict>
+</plist>

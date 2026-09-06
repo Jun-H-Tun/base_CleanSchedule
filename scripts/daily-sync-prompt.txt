@@ -1,0 +1,10 @@
+beds24の予約カレンダー画面を確認し、表示されている全予約について以下のフィールドを抽出してください。
+- unitName: 物件名(b1〜b9)
+- checkoutDate: チェックアウト日(YYYY-MM-DD)
+- nextCheckinDate: 次の予約のチェックイン日(YYYY-MM-DD。未定ならnull)
+- nextGuestCount: 次の予約の人数(未定ならnull)
+- notes: 備考欄の内容そのまま(なければnull)
+
+抽出できたら、それらをJSON配列として reservations.json というファイルに保存してください。
+保存できたら ./scripts/sync-reservations.sh reservations.json を実行してCleanScheduleへ反映してください。
+実行結果(成功件数やエラー)を最後に日本語で簡潔に教えてください。
