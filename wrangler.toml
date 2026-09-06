@@ -16,6 +16,11 @@ database_name = "cleanschedule-db"
 database_id = "e3168c7b-05f6-4c04-8cf3-4d0ec78cfd4d"
 migrations_dir = "migrations"
 
+# 毎日 JST 06:00 (UTC 21:00) に自動割り振りを実行する(src/index.ts の scheduled ハンドラ)。
+# 時刻を変更したい場合はこの値を編集してください(UTC指定, 分 時 日 月 曜日)。
+[triggers]
+crons = ["0 21 * * *"]
+
 # Secrets (set with `wrangler secret put <NAME>`, never committed):
 #   JWT_SECRET       - random string used to sign session cookies
 #   INGEST_API_KEY   - shared key the beds24 sync (Claude in Chrome -> Claude Code)

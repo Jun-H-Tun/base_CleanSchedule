@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { requireAuth, requireAdmin } from "../middleware";
-import { assignDay, type AssignmentStaffInput, type AssignmentTaskInput } from "../assignment";
+import { generateTasksForRange } from "../generateTasks";
 import type { Env, Variables } from "../types";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -16,12 +16,6 @@ function displayGuestCount(checkoutDate: string, nextCheckin: string | null, nex
   if (!nextCheckin) return 6;
   if (daysBetween(checkoutDate, nextCheckin) >= FAR_NEXT_CHECKIN_DAYS) return 6;
   return nextGuestCount ?? 6;
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 // GET /api/tasks?start=&end= : カレンダー表示用の一覧(スタッフ・物件・予約情報を結合)
@@ -60,108 +54,15 @@ app.get("/", requireAuth, async (c) => {
 // POST /api/tasks/generate  body: { start, end } (admin)
 // 指定期間内の各日について貪欲法で自動割り振りを行う。is_manual_override=1 の
 // タスクや status が completed/cancelled のタスクは対象外(上書きしない)。
+// 毎日決まった時刻に走るCron Trigger(src/index.ts の scheduled)からも
+// 同じロジック(generateTasksForRange)が呼ばれる。
 app.post("/generate", requireAuth, requireAdmin, async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const start = body?.start;
   const end = body?.end;
   if (!start || !end) return c.json({ error: "start, end は必須です" }, 400);
 
-  const staffRows = (
-    await c.env.DB.prepare(
-      "SELECT id, name, is_external, priority_order FROM staff ORDER BY is_external, priority_order"
-    ).all<any>()
-  ).results as any[];
-
-  let cursor = start;
-  const summary: { date: string; assigned: number; unassigned: number }[] = [];
-
-  while (cursor <= end) {
-    const date = cursor;
-    cursor = addDays(cursor, 1);
-
-    // その日にチェックアウトする予約 = 清掃対象
-    const reservations = (
-      await c.env.DB.prepare(
-        `SELECT r.id as reservation_id, u.unit_name, r.checkout_date, r.next_checkin_date
-         FROM reservations r JOIN units u ON u.id = r.unit_id
-         WHERE r.checkout_date = ?`
-      )
-        .bind(date)
-        .all<any>()
-    ).results as any[];
-
-    if (reservations.length === 0) continue;
-
-    // 既存タスク(手動修正 or 完了/キャンセル済み)は再計算対象から除外
-    const existingTasks = (
-      await c.env.DB.prepare(
-        `SELECT ct.* FROM cleaning_tasks ct
-         JOIN reservations r ON r.id = ct.reservation_id
-         WHERE ct.cleaning_date = ?`
-      )
-        .bind(date)
-        .all<any>()
-    ).results as any[];
-    const frozenReservationIds = new Set(
-      existingTasks.filter((t) => t.is_manual_override || t.status !== "assigned").map((t) => t.reservation_id)
-    );
-
-    const targetReservations = reservations.filter((r) => !frozenReservationIds.has(r.reservation_id));
-    if (targetReservations.length === 0) continue;
-
-    const availability = (
-      await c.env.DB.prepare(
-        "SELECT staff_id, availability_type FROM staff_availability WHERE target_date = ?"
-      )
-        .bind(date)
-        .all<any>()
-    ).results as any[];
-    const availabilityMap = new Map<number, string>(availability.map((a) => [a.staff_id, a.availability_type]));
-
-    const staffList: AssignmentStaffInput[] = staffRows.map((s) => ({
-      staffId: s.id,
-      name: s.name,
-      isExternal: !!s.is_external,
-      priorityOrder: s.priority_order,
-      availabilityType: (availabilityMap.get(s.id) as any) ?? (s.is_external ? "3件" : null),
-      // Rクリーン(外部)は予定入力の対象外なので、常に受け入れ可能として扱う
-    }));
-
-    const tasksInput: AssignmentTaskInput[] = targetReservations.map((r) => ({
-      reservationId: r.reservation_id,
-      unitName: r.unit_name,
-      isSameDayTurnover: r.next_checkin_date === r.checkout_date,
-    }));
-
-    const results = assignDay(tasksInput, staffList);
-
-    let assignedCount = 0;
-    let unassignedCount = 0;
-    for (const r of results) {
-      const task = tasksInput.find((t) => t.reservationId === r.reservationId)!;
-      if (r.assignedStaffId) assignedCount++;
-      else unassignedCount++;
-
-      const existing = existingTasks.find((t) => t.reservation_id === r.reservationId);
-      if (existing) {
-        await c.env.DB.prepare(
-          `UPDATE cleaning_tasks SET assigned_staff_id = ?, is_same_day_turnover = ?, updated_at = datetime('now')
-           WHERE id = ?`
-        )
-          .bind(r.assignedStaffId, task.isSameDayTurnover ? 1 : 0, existing.id)
-          .run();
-      } else {
-        await c.env.DB.prepare(
-          `INSERT INTO cleaning_tasks (reservation_id, cleaning_date, is_same_day_turnover, assigned_staff_id, is_manual_override, status)
-           VALUES (?, ?, ?, ?, 0, 'assigned')`
-        )
-          .bind(r.reservationId, date, task.isSameDayTurnover ? 1 : 0, r.assignedStaffId)
-          .run();
-      }
-    }
-    summary.push({ date, assigned: assignedCount, unassigned: unassignedCount });
-  }
-
+  const summary = await generateTasksForRange(c.env.DB, start, end);
   return c.json({ ok: true, summary });
 });
 

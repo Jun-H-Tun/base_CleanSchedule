@@ -57,6 +57,16 @@ D1データベース `cleanschedule-db` はすでにCloudflareアカウント上
 判定するのではなく `availability_type` 側にルールを持たせているため、同じ働き方をする
 スタッフが将来増えても `staff_rules` テーブルの追加なしに対応できます)。
 
+### 自動割り振りの実行タイミング
+
+毎日 **JST 06:00**(`wrangler.toml` の Cron Trigger)に、今日から30日先までの清掃タスクを
+自動で再計算します(`src/index.ts` の `scheduled` ハンドラ → `src/generateTasks.ts`)。
+手動修正済み(`is_manual_override=1`)や完了/キャンセル済みのタスクは対象外です。
+時刻を変えたい場合は `wrangler.toml` の `[triggers] crons` を編集してください(UTC指定)。
+
+カレンダー画面の「この月を自動割り振り」ボタンで、Cronを待たずにその場で再計算することも
+できます(管理者のみ)。
+
 ## セットアップ
 
 ### 1. 依存関係のインストール
