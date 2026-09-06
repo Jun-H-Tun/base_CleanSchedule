@@ -145,4 +145,6 @@ npx wrangler secret put INGEST_API_KEY
   カレンダー上の「完了報告」ボタンから行える形で実装しました(要件確定後に調整可能)。
 - beds24からの読み取り(Claude in Chrome)自体は本アプリの範囲外です。読み取った内容を
   `POST /api/reservations/upsert`(または複数件まとめて送る `/upsert-batch`)へ送る連携部分は
-  別途Claude Code側で実装してください。
+  別途Claude Code側で実装してください。手順書とスクリプトを `docs/beds24-sync-guide.md` /
+  `scripts/sync-reservations.sh` に用意しています(ローカルのClaude Code + Claude in Chromeで
+  実行する想定。クラウド版のCleanSchedule自体はbeds24へアクセスできません)。
