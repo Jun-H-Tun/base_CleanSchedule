@@ -63,6 +63,74 @@ export CLEANSCHEDULE_INGEST_KEY="<GitHub Secretsに登録したINGEST_API_KEYの
 | 日付が反映されない/ズレる | `checkoutDate` / `nextCheckinDate` が `YYYY-MM-DD` 形式になっているか確認 |
 | 件数が0件 | `reservations.json` が配列 `[...]` になっているか(オブジェクト1件だけを渡していないか)確認 |
 
+## 毎日決まった時刻に「半自動」で実行する(macOS)
+
+手順3を毎回手打ちするのではなく、決まった時刻に**通知(確認ダイアログ)を出して、
+クリックしたら実行する**という半自動化ができます。フルの無人自動化(確認なしで実行)は
+誤動作のリスクがあるため、あえて「人がクリックする1手間」を残した安全側の構成です。
+
+用意しているファイル:
+
+- `scripts/daily-sync-prompt.txt` — Claude Codeに渡すプロンプト本文(手順3と同じ内容)
+- `scripts/run-claude-sync.sh` — 上記プロンプトでClaude Codeを起動するスクリプト
+- `scripts/mac-daily-reminder.sh` — 確認ダイアログを出し、「実行する」が押されたら
+  Terminal.appで `run-claude-sync.sh` を開くスクリプト
+- `scripts/com.cleanschedule.dailyreminder.plist.example` — 上記を毎日決まった時刻に
+  起動するための launchd 設定テンプレート
+
+### セットアップ
+
+1. `CLEANSCHEDULE_INGEST_KEY` を `~/.zshrc`(または `~/.bash_profile`)に追記して、
+   新しいターミナルでも自動で読み込まれるようにしておく:
+   ```bash
+   echo 'export CLEANSCHEDULE_INGEST_KEY="<INGEST_API_KEYの値>"' >> ~/.zshrc
+   ```
+2. リポジトリのフルパスを確認:
+   ```bash
+   cd base_CleanSchedule && pwd
+   ```
+3. plistテンプレートをコピーして、パスと時刻を書き換える:
+   ```bash
+   cp scripts/com.cleanschedule.dailyreminder.plist.example \
+      ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist
+   # ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist を開き、
+   # /REPLACE/ME/base_CleanSchedule を手順2で確認した実際のパスに書き換える
+   # (時刻を変えたい場合は Hour / Minute も編集)
+   ```
+4. 登録して有効化:
+   ```bash
+   launchctl load -w ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist
+   ```
+5. うまく動くか、その場ですぐテストしたい場合:
+   ```bash
+   launchctl start com.cleanschedule.dailyreminder
+   ```
+   設定した時刻を待たずにダイアログが出るはずです。
+
+### 動作の流れ
+
+1. 設定した時刻にダイアログ「beds24の予約データをCleanScheduleに同期しますか?」が表示される
+   (120秒操作がなければ自動的に「あとで」扱いでスキップ)
+2. 「実行する」を押すとTerminal.appが開き、`run-claude-sync.sh` が起動する
+3. ローカルのClaude Codeが `daily-sync-prompt.txt` の内容に従って、
+   Claude in Chromeでbeds24を読み取り→`reservations.json`保存→`sync-reservations.sh`実行、
+   まで進める(このとき実際のコマンド実行前には普段通りの権限確認が入ります)
+
+ログは `/tmp/cleanschedule-sync.log`(ダイアログの応答)、
+`/tmp/cleanschedule-dailyreminder.{out,err}.log`(launchd自体のログ)に出力されます。
+
+### 停止・変更したいとき
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.cleanschedule.dailyreminder.plist
+```
+
+時刻を変えたい場合は plist を編集後、unload → load し直してください。
+
+> **注意**: `mac-daily-reminder.sh` のダイアログ表示・Terminal起動まわりの AppleScript は
+> macOSのバージョンによって挙動が微妙に異なることがあります。一度 `launchctl start` で
+> 手動テストして、期待通りダイアログが出てTerminalが開くか確認してから運用してください。
+
 ## 単発で1件だけ手動登録したい場合
 
 `scripts/sync-reservations.sh` を使わず、直接curlで1件だけ送ることもできます:
